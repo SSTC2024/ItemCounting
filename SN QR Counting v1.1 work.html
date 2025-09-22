@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR/Barcode Scanner Counter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .settings-panel {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #startBtn {
+            background: #4CAF50;
+            color: white;
+        }
+
+        #startBtn:hover:not(:disabled) {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        #stopBtn {
+            background: #f44336;
+            color: white;
+        }
+
+        #stopBtn:hover:not(:disabled) {
+            background: #da190b;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(244, 67, 54, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-panel {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .status-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 6px;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-item h3 {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .status-item p {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .scanner-input {
+            margin-bottom: 30px;
+        }
+
+        .scanner-input textarea {
+            width: 100%;
+            height: 50px;
+            min-height: 50px;
+            max-height: 50px;
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            resize: none;
+            line-height: 1.3;
+            overflow: hidden;
+        }
+
+        .scanner-input textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .items-table {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .items-table h2 {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 1.5em;
+            color: #2c3e50;
+        }
+
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table a {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        table a:hover {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 12px 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .duplicate-item {
+            background-color: #ffebee !important;
+            color: #c62828;
+        }
+
+        .export-log {
+            margin-top: 30px;
+            background: #e8f5e9;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #c8e6c9;
+        }
+
+        .export-log h3 {
+            color: #2e7d32;
+            margin-bottom: 10px;
+        }
+
+        .export-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #c8e6c9;
+            font-size: 14px;
+        }
+
+        .export-item:last-child {
+            border-bottom: none;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        @keyframes blink {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                background-color: #d1ecf1;
+                transform: scale(1.02);
+            }
+            to {
+                background-color: transparent;
+                transform: scale(1);
+            }
+        }
+
+        .scanning {
+            animation: pulse 1.5s infinite;
+        }
+
+        .listening-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: #4CAF50;
+            border-radius: 50%;
+            margin-left: 10px;
+            animation: blink 1s infinite;
+        }
+
+        .new-item {
+            animation: fadeIn 1s ease-out;
+        }
+
+        #processBtn {
+            margin-top: 10px; 
+            padding: 10px 20px; 
+            background: #2196F3; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer;
+        }
+
+        #processBtn:hover {
+            background: #1976D2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📦 QR/Barcode Scanner Counter System</h1>
+
+        <div class="settings-panel">
+            <div class="input-group">
+                <label for="model">Model / SKU:</label>
+                <input type="text" id="model" placeholder="Enter model or SKU">
+            </div>
+            <div class="input-group">
+                <label for="itemsPerCarton">Items per Carton:</label>
+                <input type="number" id="itemsPerCarton" value="100" min="1" placeholder="Enter items per carton">
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button id="startBtn">▶️ START</button>
+            <button id="stopBtn" disabled>⏹️ STOP</button>
+        </div>
+
+        <div class="status-panel">
+            <div class="status-grid">
+                <div class="status-item">
+                    <h3>Current Carton</h3>
+                    <p id="currentCarton">CTN01</p>
+                </div>
+                <div class="status-item">
+                    <h3>Current Item Order</h3>
+                    <p id="currentItem">0</p>
+                </div>
+                <div class="status-item">
+                    <h3>Items in Carton</h3>
+                    <p id="itemsInCarton">0</p>
+                </div>
+                <div class="status-item">
+                    <h3>Total Items Scanned</h3>
+                    <p id="totalItems">0</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="scanner-input">
+            <label for="scannerData">Scanner Input:<span id="listeningIndicator" class="listening-indicator" style="display: none;"></span></label>
+            <textarea id="scannerData" placeholder="" disabled></textarea>
+            <button id="processBtn" style="display: none;">Process Current Input</button>
+            <button id="testScanBtn" style="display: none;">Test Scanner</button>
+            <div id="debugInfo" style="display: none !important;">
+                <strong>Debug Info:</strong>
+                <div id="debugMessages"></div>
+            </div>
+        </div>
+
+        <div class="items-table">
+            <h2>Current Carton Items</h2>
+            <div class="table-container">
+                <table id="itemsTable">
+                    <thead>
+                        <tr>
+                            <th>Item #</th>
+                            <th>Serial Number</th>
+                            <th>QR Link</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="export-log">
+            <h3>📁 Export Log</h3>
+            <div id="exportLog"></div>
+        </div>
+    </div>
+
+    <script>
+    // Use a namespace to avoid global conflicts
+    window.ScannerApp = (function() {
+        'use strict';
+        
+        // Application state
+        const state = {
+            isScanning: false,
+            currentCartonNumber: 1,
+            currentItemOrder: 0,
+            itemsInCurrentCarton: [],
+            allScannedItems: new Set(),
+            pendingData: '',
+            totalItemsScanned: 0,
+            buffer: '',
+            lastInputValue: '',
+            lastProcessedValue: '' // Track last processed value to prevent duplicates
+        };
+
+        // Initialize when DOM is ready
+        function init() {
+            // console.log('Initializing Scanner App...');
+            
+            // Get DOM elements
+            const elements = {
+                startBtn: document.getElementById('startBtn'),
+                stopBtn: document.getElementById('stopBtn'),
+                scannerData: document.getElementById('scannerData'),
+                processBtn: document.getElementById('processBtn'),
+                testScanBtn: document.getElementById('testScanBtn'),
+                model: document.getElementById('model'),
+                itemsPerCarton: document.getElementById('itemsPerCarton')
+            };
+
+            // Attach event listeners
+            elements.startBtn.addEventListener('click', startScanning);
+            elements.stopBtn.addEventListener('click', stopScanning);
+            elements.processBtn.addEventListener('click', () => {
+                const scannerData = elements.scannerData;
+                const value = scannerData.value.trim();
+                if (value) {
+                    addDebugMessage(`Process button clicked with value: "${value}"`);
+                    state.buffer = value;
+                    scannerData.value = '';
+                    state.lastInputValue = '';
+                    processCompleteItem();
+                    scannerData.focus();
+                } else {
+                    addDebugMessage('Process button clicked but input is empty');
+                }
+            });
+            elements.testScanBtn.addEventListener('click', simulateScan);
+            
+            // Scanner input handlers
+            elements.scannerData.addEventListener('input', (e) => {
+                const currentValue = e.target.value;
+                if (currentValue !== state.lastInputValue && currentValue) {
+                    state.lastInputValue = currentValue;
+                    addDebugMessage(`Input changed: "${currentValue}"`);
+                }
+            });
+            
+            elements.scannerData.addEventListener('paste', (e) => {
+                addDebugMessage('Paste event triggered');
+                setTimeout(() => {
+                    // For paste, check if it contains newlines
+                    const pastedText = elements.scannerData.value;
+                    if (pastedText.includes('\n')) {
+                        const lines = pastedText.split('\n').filter(line => line.trim());
+                        elements.scannerData.value = '';
+                        state.buffer = '';
+                        state.lastInputValue = '';
+                        
+                        // Process each line separately
+                        lines.forEach((line, index) => {
+                            setTimeout(() => {
+                                state.buffer = line.trim();
+                                processCompleteItem();
+                            }, index * 100); // Small delay between items
+                        });
+                    } else if (pastedText.trim()) {
+                        // Single line paste - process as normal
+                        state.buffer = pastedText.trim();
+                        processScannerInput(true);
+                    }
+                }, 50);
+            });
+            
+            elements.scannerData.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); // Prevent adding newline to textarea
+                    addDebugMessage('Enter key pressed');
+                    processScannerInput(true);
+                }
+            });
+            
+            elements.scannerData.addEventListener('keyup', (e) => {
+                if (e.key === 'Tab') {
+                    addDebugMessage('Tab key pressed');
+                    processScannerInput(true);
+                }
+            });
+            
+            elements.scannerData.addEventListener('change', (e) => {
+                addDebugMessage('Change event triggered');
+                // Some scanners trigger change event after complete scan
+                if (e.target.value.trim() && state.isScanning) {
+                    // Only process if the value is different from what we last processed
+                    if (e.target.value.trim() !== state.lastInputValue) {
+                        state.buffer = e.target.value.trim();
+                        processScannerInput(true);
+                    }
+                }
+            });
+            
+            elements.scannerData.addEventListener('focus', () => {
+                addDebugMessage('Scanner input focused');
+            });
+            
+            elements.scannerData.addEventListener('blur', () => {
+                addDebugMessage('Scanner input lost focus');
+            });
+
+            // Auto-focus on scanner input when scanning
+            document.addEventListener('click', (e) => {
+                if (state.isScanning && 
+                    e.target !== elements.scannerData && 
+                    e.target !== elements.processBtn) {
+                    elements.scannerData.focus();
+                }
+            });
+
+            updateStatus();
+            // console.log('Scanner App initialized successfully');
+        }
+
+        function startScanning() {
+            const model = document.getElementById('model');
+            const itemsPerCarton = document.getElementById('itemsPerCarton');
+
+            if (!model.value.trim()) {
+                alert('Please enter Model/SKU');
+                return;
+            }
+
+            if (!itemsPerCarton.value || itemsPerCarton.value < 1) {
+                alert('Please enter valid Items per Carton');
+                return;
+            }
+
+            state.isScanning = true;
+            
+            // Clear any previous state
+            state.buffer = '';
+            state.pendingData = '';
+            state.lastInputValue = '';
+            state.lastProcessedValue = '';
+            
+            // Update UI
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('scannerData').disabled = false;
+            document.getElementById('scannerData').value = '';
+            // Comment out showing buttons and debug info
+            // document.getElementById('processBtn').style.display = 'inline-block';
+            // document.getElementById('testScanBtn').style.display = 'inline-block';
+            // document.getElementById('debugInfo').style.display = 'block';
+            document.getElementById('listeningIndicator').style.display = 'inline-block';
+            model.disabled = true;
+            itemsPerCarton.disabled = true;
+            document.getElementById('scannerData').focus();
+
+            document.querySelector('.status-panel').classList.add('scanning');
+            updateStatus();
+            addToExportLog('Scanning started');
+            // addDebugMessage('Scanning started - waiting for input');
+            // console.log('Scanning started');
+        }
+
+        function simulateScan() {
+            const testData = [
+                'ABC123456789',  // Serial number
+                'https://example.com/qr/12345',  // QR link
+                'DEF987654321',  // Another serial
+                'https://example.com/qr/67890'   // Another link
+            ];
+            
+            addDebugMessage('Starting test scan simulation...');
+            
+            // Clear any existing data first
+            const scannerData = document.getElementById('scannerData');
+            scannerData.value = '';
+            state.buffer = '';
+            state.lastInputValue = '';
+            
+            let index = 0;
+            function scanNext() {
+                if (index < testData.length && state.isScanning) {
+                    // Simulate typing the complete string
+                    scannerData.value = testData[index];
+                    state.buffer = testData[index];
+                    state.lastInputValue = testData[index];
+                    
+                    addDebugMessage(`Simulated scan: "${testData[index]}"`);
+                    
+                    // Simulate Enter key press
+                    setTimeout(() => {
+                        processScannerInput(true);
+                        index++;
+                        
+                        // Continue with next scan after a delay
+                        if (index < testData.length) {
+                            setTimeout(scanNext, 1500);
+                        } else {
+                            addDebugMessage('Test scan simulation completed');
+                        }
+                    }, 500);
+                }
+            }
+            
+            scanNext();
+        }
+
+        function addDebugMessage(message) {
+            // Debug messages disabled - keeping function for code compatibility
+            // console.log('DEBUG:', message);
+        }
+
+        function stopScanning() {
+            // Check for unpaired pending data
+            if (state.pendingData) {
+                const confirmMsg = state.pendingData.startsWith('http') 
+                    ? 'You have a pending QR link without a serial number. Stop anyway?'
+                    : `You have a pending serial number "${state.pendingData}" without a QR link. Stop anyway?`;
+                
+                if (!confirm(confirmMsg)) {
+                    return;
+                }
+            }
+            
+            if (state.itemsInCurrentCarton.length > 0) {
+                exportCurrentCarton(true);
+            }
+
+            state.isScanning = false;
+            
+            // Update UI
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('scannerData').disabled = true;
+            // Comment out hiding buttons and debug info (already hidden)
+            // document.getElementById('processBtn').style.display = 'none';
+            // document.getElementById('testScanBtn').style.display = 'none';
+            // document.getElementById('debugInfo').style.display = 'none';
+            document.getElementById('listeningIndicator').style.display = 'none';
+            document.getElementById('model').disabled = false;
+            document.getElementById('itemsPerCarton').disabled = false;
+
+            // Clear buffers
+            state.buffer = '';
+            state.pendingData = '';
+            state.lastInputValue = '';
+            state.lastProcessedValue = '';
+
+            document.querySelector('.status-panel').classList.remove('scanning');
+            addToExportLog('Scanning stopped');
+            // console.log('Scanning stopped');
+        }
+
+        function processScannerInput(forceProcess = false) {
+            if (!state.isScanning) return;
+
+            const scannerData = document.getElementById('scannerData');
+            const input = scannerData.value.trim();
+
+            // Don't process empty input unless forced
+            if (!input && !forceProcess) return;
+
+            addDebugMessage(`Raw input: "${input}" (length: ${input.length})`);
+            
+            // For Enter key or force process, process the current input
+            if (forceProcess && input) {
+                // Use the input directly, don't append to buffer
+                state.buffer = input;
+                // Clear the input field immediately
+                scannerData.value = '';
+                state.lastInputValue = '';
+                scannerData.focus(); // Keep focus for next scan
+                
+                addDebugMessage(`Enter pressed - processing: "${state.buffer}"`);
+                processCompleteItem();
+            } else if (forceProcess && !input) {
+                // Force process was called but no input - clear everything
+                scannerData.value = '';
+                state.buffer = '';
+                state.lastInputValue = '';
+            }
+        }
+
+        function processCompleteItem() {
+            if (!state.buffer.trim()) {
+                addDebugMessage('Buffer is empty, nothing to process');
+                state.buffer = '';
+                return;
+            }
+
+            const item = state.buffer.trim();
+            state.buffer = ''; // Clear buffer immediately after getting the item
+
+            // Check if this is the same as the last processed value (rapid duplicate)
+            if (item === state.lastProcessedValue) {
+                addDebugMessage(`Rapid duplicate scan detected: "${item}" - ignoring`);
+                return;
+            }
+
+            // Check if this is the same as pending data (duplicate scan)
+            if (item === state.pendingData) {
+                addDebugMessage(`Duplicate of pending data detected: "${item}" - ignoring`);
+                return;
+            }
+
+            state.lastProcessedValue = item;
+            addDebugMessage(`Processing complete item: "${item}"`);
+
+            // Determine if it's a link or serial number
+            if (item.startsWith('http://') || item.startsWith('https://')) {
+                addDebugMessage(`Identified as QR link: ${item}`);
+                
+                // If we have a pending serial, pair them
+                if (state.pendingData && !state.pendingData.startsWith('http')) {
+                    addItem(state.pendingData, item);
+                    state.pendingData = '';
+                    state.lastProcessedValue = ''; // Clear after successful pairing
+                } else {
+                    // Save link as pending
+                    state.pendingData = item;
+                    addDebugMessage(`Saved pending link, waiting for serial`);
+                }
+            } else {
+                addDebugMessage(`Identified as serial number: ${item}`);
+                
+                // If we have a pending link, pair them
+                if (state.pendingData && (state.pendingData.startsWith('http://') || state.pendingData.startsWith('https://'))) {
+                    addItem(item, state.pendingData);
+                    state.pendingData = '';
+                    state.lastProcessedValue = ''; // Clear after successful pairing
+                } else {
+                    // Save serial as pending
+                    state.pendingData = item;
+                    addDebugMessage(`Saved pending serial, waiting for QR link`);
+                }
+            }
+            
+            updateStatus();
+        }
+
+        function addItem(serial, link) {
+            // Validate inputs
+            if (!serial || !link) {
+                addDebugMessage(`Invalid item data - Serial: "${serial}", Link: "${link}"`);
+                return;
+            }
+            
+            state.currentItemOrder++;
+            state.totalItemsScanned++;
+
+            const itemKey = `${serial}-${link}`;
+            const isDuplicate = state.allScannedItems.has(itemKey);
+            state.allScannedItems.add(itemKey);
+
+            const item = {
+                order: state.currentItemOrder,
+                serial: serial || 'Missing Serial',
+                link: link || 'Missing Link',
+                isDuplicate: isDuplicate
+            };
+
+            state.itemsInCurrentCarton.push(item);
+            addItemToTable(item);
+            updateStatus();
+
+            addDebugMessage(`✅ Item ${state.currentItemOrder} paired successfully!`);
+            addDebugMessage(`   Serial: "${serial}"`);
+            addDebugMessage(`   Link: "${link}"`);
+
+            // Check if carton is full
+            const itemsPerCarton = parseInt(document.getElementById('itemsPerCarton').value);
+            if (state.itemsInCurrentCarton.length >= itemsPerCarton) {
+                addDebugMessage(`📦 Carton full (${itemsPerCarton} items) - creating XLSX file...`);
+                exportCurrentCarton(false);
+            }
+        }
+
+        function addItemToTable(item) {
+            const tbody = document.getElementById('itemsBody');
+            const row = tbody.insertRow();
+
+            if (item.isDuplicate) {
+                row.classList.add('duplicate-item');
+            }
+            
+            // Add animation for new items
+            row.classList.add('new-item');
+
+            row.insertCell(0).textContent = item.order;
+            row.insertCell(1).textContent = item.serial;
+            row.insertCell(2).innerHTML = item.link ? 
+                `<a href="${item.link}" target="_blank">Link</a>` : 'Missing';
+            row.insertCell(3).textContent = item.isDuplicate ? 'Duplicate' : 'OK';
+            
+            // Scroll to the new item
+            tbody.parentElement.scrollTop = tbody.parentElement.scrollHeight;
+        }
+
+        function exportCurrentCarton(isFinal) {
+            if (state.itemsInCurrentCarton.length === 0) return;
+
+            const firstSerial = state.itemsInCurrentCarton.find(
+                item => item.serial !== 'Missing Serial'
+            )?.serial || 'NoSerial';
+            
+            const itemCount = state.itemsInCurrentCarton.length;
+            const fileName = `CTN${String(state.currentCartonNumber).padStart(2, '0')}-${itemCount}pcs-${firstSerial}.xlsx`;
+
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            const wsData = [['Serial Number', 'QR Link']];
+            
+            state.itemsInCurrentCarton.forEach(item => {
+                wsData.push([item.serial, item.link]);
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, 'Items');
+            XLSX.writeFile(wb, fileName);
+
+            addToExportLog(`Exported: ${fileName} (${itemCount} items)`);
+
+            // Reset for next carton
+            if (!isFinal) {
+                state.currentCartonNumber++;
+                state.itemsInCurrentCarton = [];
+                document.getElementById('itemsBody').innerHTML = '';
+                updateStatus();
+            }
+        }
+
+        function updateStatus() {
+            document.getElementById('currentCarton').textContent = 
+                `CTN${String(state.currentCartonNumber).padStart(2, '0')}`;
+            document.getElementById('currentItem').textContent = state.currentItemOrder;
+            document.getElementById('itemsInCarton').textContent = state.itemsInCurrentCarton.length;
+            document.getElementById('totalItems').textContent = state.totalItemsScanned;
+            
+            // Pending data status messages disabled
+            // if (state.pendingData) {
+            //     if (state.pendingData.startsWith('http')) {
+            //         addDebugMessage(`⏳ Waiting for serial number to pair with QR link`);
+            //     } else {
+            //         addDebugMessage(`⏳ Waiting for QR link to pair with serial: "${state.pendingData}"`);
+            //     }
+            // }
+        }
+
+        function addToExportLog(message) {
+            const log = document.getElementById('exportLog');
+            const logItem = document.createElement('div');
+            logItem.className = 'export-item';
+            const timestamp = new Date().toLocaleTimeString();
+            logItem.textContent = `[${timestamp}] ${message}`;
+            log.insertBefore(logItem, log.firstChild);
+
+            // Keep only last 10 entries
+            while (log.children.length > 10) {
+                log.removeChild(log.lastChild);
+            }
+        }
+
+        // Public API
+        return {
+            init: init
+        };
+    })();
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', window.ScannerApp.init);
+    } else {
+        window.ScannerApp.init();
+    }
+    </script>
+</body>
+</html>
